@@ -3,6 +3,8 @@ library(openxlsx)
 library(DT)
 library(tidyverse)
 
+
+
 # returns listing of files in data directory
 directorycontent <- function() {
   return(list.files("Pending_Logs"))
@@ -86,7 +88,7 @@ sphlatestfilecontents <- function() {
     filter(!((Test == 'CTROPT' | Test == 'HCG' | Test == 'LBNP') & MinFromReceipt 
              <= 40)) %>%
     # filter out MSJ
-    filter(!str_detect(Location, 'MSJ')) %>%
+    filter(!(str_detect(Location, 'MSJ'))) %>%
     # CSF HEM
     filter(!(Test == 'FCSF' & MinFromReceipt <= 60)) %>%
     # CSF CHEM
@@ -138,31 +140,41 @@ sphlatestfilecontents <- function() {
   sph_spacer_1 <- sph_eh_count                                                                                                                                                                                     
   sph_spacer_2 <- sph_ed_count + sph_icu_count + sph_eh_count + 1 
   
-  # Arrange so that ED and ICU are at the top and the rest is chronological
-  mostrecent$location_type <- "WARD"
-  mostrecent$location_type[str_detect(mostrecent$Location, "ED")] <- "EDICU"
-  mostrecent$location_type[str_detect(mostrecent$Location, "SPHICU")] <- "EDICU"
-  mostrecent$location_type[str_detect(mostrecent$Location, "EH")] <- "1EDICU"
-  mostrecent <- arrange(mostrecent, location_type, desc(MinFromReceipt)) %>%
-    add_row(Accession = '-', .after = sph_spacer_1) %>%
-    add_row(Accession = '-',.after = sph_spacer_2)
+  # No tests vector in case of no sph tests
+  NoTests <- c('No Tests')
   
-  sphfilecontents <- datatable(select(mostrecent, -location_type), 
-                               rownames = FALSE, options = list(
-                                 columnDefs = list(list(visible=FALSE,targets=10)), 
-                                 pageLength = 100, dom = 't', lengthChange = FALSE)) %>%
+  # Arrange so that ED and ICU are at the top and the rest is chronological
+  if (nrow(mostrecent) > 0){
+    mostrecent$location_type <- "WARD"
+    mostrecent$location_type[str_detect(mostrecent$Location, "ED")] <- "EDICU"
+    mostrecent$location_type[str_detect(mostrecent$Location, "SPHICU")] <- "EDICU"
+    mostrecent$location_type[str_detect(mostrecent$Location, "EH")] <- "1EDICU"
+    mostrecent <- arrange(mostrecent, location_type, desc(MinFromReceipt)) %>%
+      # add spacer rows
+      add_row(Accession = '-', .after = sph_spacer_1) %>%
+      add_row(Accession = '-',.after = sph_spacer_2)
     
-    # styling  based on background_colour column
-    formatStyle('background_colour', target ='row', backgroundColor = 
-                  styleEqual(c('magenta', 'red', 'none'),c('#e892db', 
-                                                           '#d17979', 
-                                                           'white'))) %>%
-    formatStyle('background_colour', target ='row', Color = 
-                  styleEqual(c('magenta', 'red', 'none'), c('white', 'white', 
-                                                            'none'))) %>%
-    formatStyle('background_colour', target ='row', fontWeight = 'bold') %>%
-    formatDate('Collect', method = "toLocaleString", params = NULL) %>%
-    formatDate('Receive', method = "toLocaleString", params = NULL)
+    sphfilecontents <- datatable(select(mostrecent, -location_type), 
+                                 rownames = FALSE, options = list(
+                                   columnDefs = list(list(visible=FALSE,targets=10)), 
+                                   pageLength = 100, dom = 't', lengthChange = FALSE)) %>%
+      
+      # styling  based on background_colour column
+      formatStyle('background_colour', target ='row', backgroundColor = 
+                    styleEqual(c('magenta', 'red', 'none'),c('#e892db', 
+                                                             '#d17979', 
+                                                             'white'))) %>%
+      formatStyle('background_colour', target ='row', Color = 
+                    styleEqual(c('magenta', 'red', 'none'), c('white', 'white', 
+                                                              'none'))) %>%
+      formatStyle('background_colour', target ='row', fontWeight = 'bold') %>%
+      formatDate('Collect', method = "toLocaleString", params = NULL) %>%
+      formatDate('Receive', method = "toLocaleString", params = NULL)}else{
+        sphfilecontents <- datatable(data.frame(NoTests), rownames = FALSE, 
+                                     options = list(dom = 't')) %>%
+          formatStyle('NoTests', target ='row', fontWeight = 'bold')}
+  
+  
   return(sphfilecontents)
 }
 
@@ -265,6 +277,8 @@ mostrecent <- read.xlsx(pathtomostrecent) %>%
                                                               Location == 'MSJNICU' | Location == 'MSJOR') & 
                                                              MinFromReceipt >= 60, 'red','none')))))))
 
+
+
 #  Calculate the spacer placement by counting rows of the blocks
 
 msj_count_table <- count(mostrecent, Location, sort = FALSE) 
@@ -287,32 +301,41 @@ if (length(msj_icu_row) > 0) { msj_icu_count = msj_count_table[msj_icu_row, 2]
 msj_spacer_1 <- msj_eh_count
 msj_spacer_2 <- msj_ed_count + msj_icu_count + msj_eh_count + 1
 
-# Arrange so that ED and ICU are at the top
-mostrecent$location_type <- "WARD"
-mostrecent$location_type[str_detect(mostrecent$Location, "ED")] <- "EDICU"
-mostrecent$location_type[str_detect(mostrecent$Location, "MSJICU")] <- "EDICU"
-mostrecent$location_type[str_detect(mostrecent$Location, "EH")] <- "1EDICU"
-mostrecent <- arrange(mostrecent,location_type,desc(MinFromReceipt)) %>%
-  add_row(Accession = '-', .after = msj_spacer_1) %>%
-  add_row(Accession = '-', .after = msj_spacer_2) 
+# No tests vector in case of no msj tests
+NoTests <- c('No Tests')
 
-msjfilecontents <- datatable(select(mostrecent, -location_type), 
-                             rownames = FALSE, options = 
-                               list(columnDefs = 
-                                      list(list(visible=FALSE,targets=10)), 
-                                    pageLength = 100, dom = 't', lengthChange = FALSE)) %>%
+# Arrange so that ED and ICU are at the top
+if (nrow(mostrecent) > 0){
+  mostrecent$location_type <- "WARD"
+  mostrecent$location_type[str_detect(mostrecent$Location, "ED")] <- "EDICU"
+  mostrecent$location_type[str_detect(mostrecent$Location, "MSJICU")] <- "EDICU"
+  mostrecent$location_type[str_detect(mostrecent$Location, "EH")] <- "1EDICU"
+  mostrecent <- arrange(mostrecent,location_type,desc(MinFromReceipt)) %>%
+    add_row(Accession = '-', .after = msj_spacer_1) %>%
+    add_row(Accession = '-', .after = msj_spacer_2)
   
-  # styling  based on background_colour column
-  formatStyle('background_colour', target ='row', backgroundColor = 
-                styleEqual(c('magenta', 'red', 'none'),c('#e892db', 
-                                                         '#d17979', 
-                                                         'white'))) %>%
-  formatStyle('background_colour', target ='row', Color = 
-                styleEqual(c('magenta', 'red', 'none'), c('white', 'white', 
-                                                          'none'))) %>%
-  formatStyle('background_colour', target ='row', fontWeight = 'bold') %>%
-  formatDate('Collect', method = "toLocaleString", params = NULL) %>%
-  formatDate('Receive', method = "toLocaleString", params = NULL)
+  
+  msjfilecontents <- datatable(select(mostrecent, -location_type), 
+                               rownames = FALSE, options = 
+                                 list(columnDefs = 
+                                        list(list(visible=FALSE,targets=10)), 
+                                      pageLength = 100, dom = 't', lengthChange = FALSE)) %>%
+    
+    # styling  based on background_colour column
+    formatStyle('background_colour', target ='row', backgroundColor = 
+                  styleEqual(c('magenta', 'red', 'none'),c('#e892db', 
+                                                           '#d17979', 
+                                                           'white'))) %>%
+    formatStyle('background_colour', target ='row', Color = 
+                  styleEqual(c('magenta', 'red', 'none'), c('white', 'white', 
+                                                            'none'))) %>%
+    formatStyle('background_colour', target ='row', fontWeight = 'bold') %>%
+    formatDate('Collect', method = "toLocaleString", params = NULL) %>%
+    formatDate('Receive', method = "toLocaleString", params = NULL) }else{
+      # data table with 'No Tests' 
+      msjfilecontents <- datatable(data.frame(NoTests), rownames = FALSE, 
+                                   options = list(dom = 't')) %>%
+        formatStyle('NoTests', target ='row', fontWeight = 'bold')}
 
 return(msjfilecontents)}
 

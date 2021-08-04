@@ -4,6 +4,7 @@ library(DT)
 library(tidyverse)
 
 
+# Sidebar with SPH and MSj tabs
 sidebar <- dashboardSidebar(sidebarMenu(
   menuItem("SPH", tabName = "SPH", icon = icon("vial")),
   menuItem("MSJ", tabName = "MSJ", icon = icon("vial"))
@@ -11,14 +12,14 @@ sidebar <- dashboardSidebar(sidebarMenu(
 
 # body contents
 body <- dashboardBody(
-  # SPH tab
+  # SPH tab body
   tabItems(
     tabItem(tabName = "SPH",
             h2("SPH Log"),
             fluidRow(box(dataTableOutput("sphdatatable"
             ), width = 'auto'))
     ),
-    # MSJ tab
+    # MSJ tab body
     tabItem(tabName = "MSJ",
             h2("MSJ Log"),
             fluidRow(box(dataTableOutput("msjdatatable"
