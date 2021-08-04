@@ -97,7 +97,7 @@ sphlatestfilecontents <- function() {
     filter(!((Test == 'CTROPT' | Test == 'HCG' | Test == 'LBNP') & MinFromReceipt 
              <= 40)) %>%
     # filter out MSJ
-    filter(!str_detect(Location, 'MSJ')) %>%
+    filter(!(str_detect(Location, 'MSJ'))) %>%
     # CSF HEM
     filter(!(Test == 'FCSF' & MinFromReceipt <= 60)) %>%
     # CSF CHEM
@@ -149,13 +149,18 @@ sphlatestfilecontents <- function() {
   sph_spacer_1 <- sph_eh_count                                                                                                                                                                                     
   sph_spacer_2 <- sph_ed_count + sph_icu_count + sph_eh_count + 1 
   
+  # No tests vector in case of no sph tests
+  NoTests <- c('No Tests')
+  
   # Arrange so that ED and ICU are at the top and the rest is chronological
+  if (nrow(mostrecent) > 0){
   mostrecent$location_type <- "WARD"
   mostrecent$location_type[str_detect(mostrecent$Location, "ED")] <- "EDICU"
   mostrecent$location_type[str_detect(mostrecent$Location, "SPHICU")] <- "EDICU"
   mostrecent$location_type[str_detect(mostrecent$Location, "EH")] <- "1EDICU"
   mostrecent <- arrange(mostrecent, location_type, desc(MinFromReceipt)) %>%
-    add_row(Accession = '-', .after = sph_spacer_1) %>%
+   # add spacer rows
+     add_row(Accession = '-', .after = sph_spacer_1) %>%
     add_row(Accession = '-',.after = sph_spacer_2)
     
   sphfilecontents <- datatable(select(mostrecent, -location_type), 
@@ -173,7 +178,12 @@ sphlatestfilecontents <- function() {
                                                             'none'))) %>%
     formatStyle('background_colour', target ='row', fontWeight = 'bold') %>%
     formatDate('Collect', method = "toLocaleString", params = NULL) %>%
-    formatDate('Receive', method = "toLocaleString", params = NULL)
+    formatDate('Receive', method = "toLocaleString", params = NULL)}else{
+      sphfilecontents <- datatable(data.frame(NoTests), rownames = FALSE, 
+                                   options = list(dom = 't')) %>%
+        formatStyle('NoTests', target ='row', fontWeight = 'bold')}
+  
+  
   return(sphfilecontents)
 }
 
@@ -276,6 +286,8 @@ mostrecent <- read.xlsx(pathtomostrecent) %>%
                      Location == 'MSJNICU' | Location == 'MSJOR') & 
                      MinFromReceipt >= 60, 'red','none')))))))
 
+
+
 #  Calculate the spacer placement by counting rows of the blocks
 
 msj_count_table <- count(mostrecent, Location, sort = FALSE) 
@@ -298,14 +310,19 @@ if (length(msj_icu_row) > 0) { msj_icu_count = msj_count_table[msj_icu_row, 2]
 msj_spacer_1 <- msj_eh_count
 msj_spacer_2 <- msj_ed_count + msj_icu_count + msj_eh_count + 1
 
+# No tests vector in case of no msj tests
+NoTests <- c('No Tests')
+
 # Arrange so that ED and ICU are at the top
+if (nrow(mostrecent) > 0){
 mostrecent$location_type <- "WARD"
 mostrecent$location_type[str_detect(mostrecent$Location, "ED")] <- "EDICU"
 mostrecent$location_type[str_detect(mostrecent$Location, "MSJICU")] <- "EDICU"
 mostrecent$location_type[str_detect(mostrecent$Location, "EH")] <- "1EDICU"
 mostrecent <- arrange(mostrecent,location_type,desc(MinFromReceipt)) %>%
   add_row(Accession = '-', .after = msj_spacer_1) %>%
-  add_row(Accession = '-', .after = msj_spacer_2) 
+  add_row(Accession = '-', .after = msj_spacer_2)
+  
 
 msjfilecontents <- datatable(select(mostrecent, -location_type), 
                              rownames = FALSE, options = 
@@ -323,7 +340,11 @@ msjfilecontents <- datatable(select(mostrecent, -location_type),
                                                           'none'))) %>%
   formatStyle('background_colour', target ='row', fontWeight = 'bold') %>%
   formatDate('Collect', method = "toLocaleString", params = NULL) %>%
-  formatDate('Receive', method = "toLocaleString", params = NULL)
+  formatDate('Receive', method = "toLocaleString", params = NULL) }else{
+   # data table with 'No Tests' 
+     msjfilecontents <- datatable(data.frame(NoTests), rownames = FALSE, 
+                                 options = list(dom = 't')) %>%
+      formatStyle('NoTests', target ='row', fontWeight = 'bold')}
 
 return(msjfilecontents)}
 
@@ -337,7 +358,7 @@ server <- function(input, output, session) {
   output$msjdatatable <-renderDataTable({msjfiledata()})
                                     
 }
-
+ # Sidebar with SPH and MSj tabs
 sidebar <- dashboardSidebar(sidebarMenu(
   menuItem("SPH", tabName = "SPH", icon = icon("vial")),
   menuItem("MSJ", tabName = "MSJ", icon = icon("vial"))
@@ -345,14 +366,14 @@ sidebar <- dashboardSidebar(sidebarMenu(
 
 # body contents
 body <- dashboardBody(
-  # SPH tab
+  # SPH tab body
   tabItems(
     tabItem(tabName = "SPH",
             h2("SPH Log"),
             fluidRow(box(dataTableOutput("sphdatatable"
             ), width = 'auto'))
     ),
-    # MSJ tab
+    # MSJ tab body
     tabItem(tabName = "MSJ",
             h2("MSJ Log"),
             fluidRow(box(dataTableOutput("msjdatatable"
