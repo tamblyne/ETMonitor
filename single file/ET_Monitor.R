@@ -348,14 +348,31 @@ msjfilecontents <- datatable(select(mostrecent, -location_type),
 
 return(msjfilecontents)}
 
+mostrecentupdate <- function() {
+  
+  tmpshot <- fileSnapshot("~/Downloads/Pending_Logs")
+  
+  newestfile <- rownames(tmpshot$info[which.max(tmpshot$info$mtime),])
+  
+  pathtomostrecent <- paste("~/Downloads/Pending_Logs", newestfile, sep = "/")
+  
+  # find time of creation of file
+  timestamp <- file.mtime(pathtomostrecent)
+  
+  return(toString(timestamp))
+}
+
                                    
 server <- function(input, output, session) {
   
   sphfiledata <- reactivePoll(1000, session, latestfilename, sphlatestfilecontents)
   msjfiledata <- reactivePoll(1000, session, latestfilename, msjlatestfilecontents)
+  latestupdate <- reactivePoll(1000 * 60, session, latestfilename, mostrecentupdate)
   
   output$sphdatatable <-renderDataTable({sphfiledata()})
   output$msjdatatable <-renderDataTable({msjfiledata()})
+  output$sphlatestupdate <- renderText({latestupdate()})
+  output$msjlatestupdate <- renderText({latestupdate()})
                                     
 }
  # Sidebar with SPH and MSj tabs
@@ -371,13 +388,15 @@ body <- dashboardBody(
     tabItem(tabName = "SPH",
             h2("SPH Log"),
             fluidRow(box(dataTableOutput("sphdatatable"
-            ), width = 'auto'))
+            ), width = 'auto')),
+            fluidRow('last updated:', textOutput('sphlatestupdate'))
     ),
     # MSJ tab body
     tabItem(tabName = "MSJ",
             h2("MSJ Log"),
             fluidRow(box(dataTableOutput("msjdatatable"
-            ), width = "auto"))
+            ), width = "auto")),
+            fluidRow('last updated:', textOutput('msjlatestupdate'))
     )
   )
 )
