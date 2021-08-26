@@ -17,13 +17,15 @@ body <- dashboardBody(
     tabItem(tabName = "SPH",
             h2("SPH Log"),
             fluidRow(box(dataTableOutput("sphdatatable"
-            ), width = 'auto'))
+            ), width = 'auto')),
+            fluidRow('last updated:', textOutput('sphlatestupdate'))
     ),
     # MSJ tab body
     tabItem(tabName = "MSJ",
             h2("MSJ Log"),
             fluidRow(box(dataTableOutput("msjdatatable"
-            ), width = "auto"))
+            ), width = "auto")),
+            fluidRow('last updated:', textOutput('msjlatestupdate'))
     )
   )
 )

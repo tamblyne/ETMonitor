@@ -339,13 +339,30 @@ if (nrow(mostrecent) > 0){
 
 return(msjfilecontents)}
 
+mostrecentupdate <- function() {
+  
+  tmpshot <- fileSnapshot("~/Downloads/Pending_Logs")
+  
+  newestfile <- rownames(tmpshot$info[which.max(tmpshot$info$mtime),])
+  
+  pathtomostrecent <- paste("~/Downloads/Pending_Logs", newestfile, sep = "/")
+  
+  # find time of creation of file
+  timestamp <- file.mtime(pathtomostrecent)
+  
+  return(toString(timestamp))
+}
+
 
 server <- function(input, output, session) {
   
   sphfiledata <- reactivePoll(1000, session, latestfilename, sphlatestfilecontents)
   msjfiledata <- reactivePoll(1000, session, latestfilename, msjlatestfilecontents)
+  latestupdate <- reactivePoll(1000 * 60, session, latestfilename, mostrecentupdate)
   
   output$sphdatatable <-renderDataTable({sphfiledata()})
   output$msjdatatable <-renderDataTable({msjfiledata()})
+  output$sphlatestupdate <- renderText({latestupdate()})
+  output$msjlatestupdate <- renderText({latestupdate()})
   
 }
